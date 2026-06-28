@@ -12,3 +12,6 @@ log.txt
 # Editor directories
 .vscode/
 .idea/
+
+# Local
+.bin/
