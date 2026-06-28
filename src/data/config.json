@@ -1,0 +1,25 @@
+{
+  "debug": true,
+  "embed": {
+    "color": 5793266,
+    "errorColor": 15548997,
+    "successColor": 5763719
+  },
+  "emoji": {
+    "error": "🚫",
+    "success": "✅",
+    "timer": "⏱",
+    "blank": "​"
+  },
+  "cooldown": {
+    "defaultMs": 3000
+  },
+  "rateLimit": {
+    "maxCommands": 4,
+    "windowMs": 6000
+  },
+  "owner": "184587051943985152",
+  "logging": {
+    "level": "warn"
+  }
+}

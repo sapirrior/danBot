@@ -1,0 +1,14 @@
+# Dependency directory
+node_modules/
+
+# Secrets and environment files
+.env
+.env.local
+
+# Local log files
+log.txt
+*.log
+
+# Editor directories
+.vscode/
+.idea/
