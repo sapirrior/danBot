@@ -3,9 +3,9 @@
   "prefix": "sudo",
   "statusChannel": "1471855331616231591",
   "embed": {
-    "color": 5793266,
-    "errorColor": 15548997,
-    "successColor": 5763719
+    "color": 5864793,
+    "errorColor": 2895153,
+    "successColor": 5864793
   },
   "emoji": {
     "error": "🚫",

@@ -26,13 +26,20 @@ export function error(message) {
   return function (content, options = {}) {
     const emoji = _main?.config?.emoji?.error ?? '🚫';
     const tag = `<@${message.author.id}>`;
-    let text;
-    if (typeof content === 'string') {
-      text = `${emoji} **|** ${tag}${content}`;
-    } else {
-      const inner = content.content !== undefined ? content.content : '';
-      text = `${emoji} **|** ${tag}${inner}`;
+    let rawText = typeof content === 'string' ? content : (content.content !== undefined ? content.content : '');
+    
+    // Add ', sir' punctuation handling randomly
+    if (Math.random() > 0.5) {
+      if (rawText.endsWith('!')) {
+        rawText = rawText.slice(0, -1) + ', sir!';
+      } else if (rawText.endsWith('.')) {
+        rawText = rawText.slice(0, -1) + ', sir.';
+      } else {
+        rawText = rawText + ', sir';
+      }
     }
+
+    const text = `${emoji} **|** ${tag}${rawText}`;
     const payload = typeof content === 'string'
       ? { content: text, ...options }
       : { ...content, content: text, ...options };

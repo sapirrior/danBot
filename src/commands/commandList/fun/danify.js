@@ -19,7 +19,8 @@ function danify(text) {
     [/\bseriously\b|\breally\b/g, 'no cap'],
     [/\bcan't\b|\bcannot\b/g, 'skill issue'],
     [/\bsorry\b/g, 'my bad lol'],
-    [/\bfriend\b|\bbro\b/g, 'bruh'],
+    [/\bfriend\b|\bbro\b/g, () => Math.random() > 0.5 ? 'sir' : 'bruh'],
+    [/\bguys\b|\bboys\b|\bdudes\b/g, () => Math.random() > 0.5 ? 'sirs' : 'boys'],
     [/\bwant to\b/g, 'wanna'],
     [/\bgoing to\b/g, 'gonna'],
     [/\bhave to\b/g, 'gotta'],
@@ -49,8 +50,15 @@ function danify(text) {
     lower = lower.replace(regex, replacement);
   }
 
-  // Goofy Dan tag endings
+  // Balanced goofy Dan tag endings
   const endings = [
+    ' fr sir',
+    ' no cap sir',
+    ' nah id win sir',
+    ' shut up sir',
+    ' skill issue sir',
+    ' lol sir',
+    ' sir',
     ' fr',
     ' no cap',
     ' nah id win',
