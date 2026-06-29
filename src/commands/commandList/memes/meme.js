@@ -6,7 +6,7 @@ export default new CommandInterface({
   description: 'Fetches a random meme from Reddit. You can specify a subreddit topic.',
   args:        '[topic]',
   example:     ['sudo meme', 'sudo meme ProgrammerHumor'],
-  group:       'meme',
+  group:       'memes',
   cooldown:    5000, 
   permissions: ['SendMessages', 'EmbedLinks'], // EmbedLinks is required to display the image
 
