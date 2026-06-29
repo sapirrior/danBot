@@ -56,7 +56,7 @@ export default new CommandInterface({
           url: data.url
         },
         footer: {
-          text: "See the most goofy memes on Reddit!"
+          text: "See the goofiest memes on Reddit!"
         }
       };
 
