@@ -2,9 +2,9 @@ import CommandInterface from '../../CommandInterface.js';
 
 const groupMeta = {
   rankings: { name: 'Rankings', emoji: '🎖' },
-  economy: { name: 'Economy', emoji: '💰' },
-  animals: { name: 'Animals', emoji: '🌱' },
-  gambling: { name: 'Gambling', emoji: '🎲' },
+  // economy: { name: 'Economy', emoji: '💰' },
+  // animals: { name: 'Animals', emoji: '🌱' },
+  // gambling: { name: 'Gambling', emoji: '🎲' },
   fun: { name: 'Fun', emoji: '🎱' },
   social: { name: 'Social', emoji: '🎭' },
   memes: { name: 'Meme Generation', emoji: '😂' },
@@ -35,6 +35,9 @@ export default new CommandInterface({
         return p.error(`, command \`${query}\` not found.`);
       }
 
+      const cdMs = command.cooldown !== undefined ? command.cooldown : (p.config.cooldown?.defaultMs || 5000);
+      const cooldownText = `\n# Cooldown\n${cdMs}ms`;
+
       let aliasText = '';
       if (command.aliases && command.aliases.length > 0) {
         aliasText = `\n# Aliases\n${command.aliases.join(' , ')}`;
@@ -49,6 +52,7 @@ export default new CommandInterface({
         '```md\n' +
         `< ${displayPrefix}${command.name} ${command.args || ''} >\n` +
         `# Description\n${command.description || 'No description'}` +
+        cooldownText +
         aliasText +
         exampleText +
         '\n``````md\n' +

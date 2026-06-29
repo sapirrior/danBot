@@ -1,6 +1,6 @@
 # Dan (danBot)
 
-A lightweight, prefix-only Discord bot built with Node.js and `discord.js` v14, optimized for low-resource hosting at scale.
+A growing, multi-purpose Discord entertainment bot in the same category as Dank Memer and OwO Bot — designed to pack maximum capabilities into a zero-bloat, highly efficient architecture.
 
 ## Features
 
@@ -15,11 +15,20 @@ A lightweight, prefix-only Discord bot built with Node.js and `discord.js` v14, 
 ## Commands
 
 All commands are invoked using the `sudo` prefix (e.g. `sudo ping`):
-*   `help`
-*   `ping`
-*   `8ball`
-*   `danify`
-*   `ship`
+*   `help` - Shows a list of available commands or specific command details.
+*   `ping` - Shows the current bot latency.
+*   `8ball` - Ask a question to the magic 8ball.
+*   `danify` - Translates text into goofy Dan-speak.
+*   `ship` - Blends two users' names into a ship name.
+*   `dadjoke` - Fetches a random dad joke.
+*   `meme` - Fetches a random meme from Reddit.
+*   `avatar` - Displays a user's avatar and profile details.
+*   `translate` - Translates text to another language.
+*   `prefix` - Shows the active prefix.
+*   `guildicon` - Displays the server's icon.
+*   `choose` - Decides a random option from a list.
+*   `roll` - Rolls custom dice (e.g. 2d6, 1d20).
+*   `scramble` - Shuffles the letters of a word or phrase.
 
 ---
 
@@ -27,7 +36,6 @@ All commands are invoked using the `sudo` prefix (e.g. `sudo ping`):
 
 Settings are managed in `src/data/config.json`:
 - `prefix`: The default bot command prefix (defaults to `"sudo"`).
-- `statusChannel`: Discord Channel ID where system status embeds (RAM, CPU, and Disk metrics) are sent periodically on startup and every 15 minutes.
 - `embed`: Hex color configuration for normal, success, and error embeds.
 - `rateLimit`: Maximum commands allowed per window to prevent spam.
 
