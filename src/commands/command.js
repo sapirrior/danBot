@@ -1,163 +1,150 @@
-import fs from 'fs/promises';
+import fs   from 'fs/promises';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import CommandInterface from './CommandInterface.js';
-import * as ban from '../utils/ban.js';
+import * as ban      from '../utils/ban.js';
 import * as cooldown from '../utils/cooldown.js';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname  = path.dirname(__filename);
 const commandListPath = path.join(__dirname, 'commandList');
 
-const commands = new Map();
-const commandGroups = new Map();
+// Module-level Maps — populated once at startup, never mutated at runtime
+const commands      = new Map(); // name   → CommandInterface
+const aliases       = new Map(); // alias  → canonical name (string)
+const commandGroups = new Map(); // group  → string[]
 
 class Command {
   constructor(main) {
-    this.main = main;
-    this.commands = commands;
+    this.main          = main;
+    this.commands      = commands;
+    this.aliases       = aliases;
     this.commandGroups = commandGroups;
   }
 
   async init() {
-    await initCommands(commandListPath);
+    await loadCommands(commandListPath);
   }
 
-  async executeInteraction(interaction) {
-    const commandName = interaction.commandName.toLowerCase();
-    const command = commands.get(commandName);
-
-    // Check if the command exists
-    if (!command) {
-      this.main.logger.warn(`Interaction called unknown command: ${commandName}`);
-      return;
-    }
-
-    // Initialize params
-    const param = initParam(interaction, commandName, this.main);
-
-    // Run execution sequence
-    await executeCommand(this.main, param);
-  }
-}
-
-async function executeCommand(main, p) {
-  // 1. Spam Guard check
-  if (!(await ban.check(p, p.command))) {
-    return;
+  // Resolve a raw input (name OR alias) to a CommandInterface instance.
+  // Called on every message — must be O(1).
+  resolve(input) {
+    const direct = commands.get(input);
+    if (direct) return direct;
+    const canonical = aliases.get(input);
+    return canonical ? commands.get(canonical) : null;
   }
 
-  // 2. Cooldown check
-  if (!(await cooldown.check(p, p.command))) {
-    return;
-  }
+  // Entry point from messageCreate.js
+  async executeMessage(message, command, args) {
+    const p = buildParam(message, command, args, this.main);
 
-  // 3. Command execution
-  try {
-    const cmdInstance = commands.get(p.command);
-    await cmdInstance.execute(p);
-    
-    // 4. Logging Command Execution
-    main.logger.command(p.command, p.user, p.guild);
-  } catch (err) {
-    main.logger.error(`Error executing command ${p.command}: ${err.stack || err}`);
+    if (!(await ban.check(p, command.name)))      return;
+    if (!(await cooldown.check(p, command.name))) return;
+
     try {
-      await p.error(', an unexpected error occurred while executing this command.');
-    } catch (sendErr) {
-      main.logger.error(`Failed to send execution error reply: ${sendErr}`);
+      await command.execute(p);
+      this.main.logger.command(command.name, p.user, p.guild);
+    } catch (err) {
+      this.main.logger.error(`Error in command "${command.name}": ${err.stack || err}`);
+      try { await p.error(', an unexpected error occurred while running this command.'); }
+      catch (_) { /* channel perms may have changed mid-execution */ }
     }
   }
 }
 
-async function getFilesRecursively(dir) {
-  const subdirs = await fs.readdir(dir, { withFileTypes: true });
-  const files = await Promise.all(
-    subdirs.map((subdir) => {
-      const res = path.resolve(dir, subdir.name);
-      return subdir.isDirectory() ? getFilesRecursively(res) : res;
+// ── Startup loader ─────────────────────────────────────────────────────────────
+
+async function loadCommands(dirPath) {
+  let files;
+  try {
+    files = await readFilesRecursively(dirPath);
+  } catch (err) {
+    console.error('Failed to read command directory:', err);
+    return;
+  }
+
+  for (const filePath of files) {
+    if (!filePath.endsWith('.js')) continue;
+
+    let commandObj;
+    try {
+      const mod = await import(pathToFileURL(filePath).href);
+      commandObj = mod.default ?? mod;
+    } catch (err) {
+      console.error(`Failed to import command file ${filePath}:`, err);
+      continue;
+    }
+
+    if (!(commandObj instanceof CommandInterface)) continue;
+
+    const name = commandObj.name;
+    commands.set(name, commandObj);
+
+    // Register aliases — all point back to the canonical name
+    if (commandObj.aliases) {
+      for (const alias of commandObj.aliases) {
+        if (commands.has(alias)) {
+          console.warn(`Alias "${alias}" for "${name}" conflicts with an existing command name. Skipping.`);
+          continue;
+        }
+        aliases.set(alias, name);
+      }
+    }
+
+    // Group tracking
+    const group = commandObj.group || 'utility';
+    if (!commandGroups.has(group)) commandGroups.set(group, []);
+    commandGroups.get(group).push(name);
+  }
+}
+
+async function readFilesRecursively(dir) {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const results = await Promise.all(
+    entries.map(entry => {
+      const res = path.resolve(dir, entry.name);
+      return entry.isDirectory() ? readFilesRecursively(res) : res;
     })
   );
-  return files.flat();
+  return results.flat();
 }
 
-async function initCommands(dirPath) {
-  const registerCommand = function (command) {
-    const name = command.name.toLowerCase();
-    commands.set(name, command);
+// ── Param builder ──────────────────────────────────────────────────────────────
 
-    // Populate commandGroups Map
-    const groupName = command.group || 'utility';
-    if (!commandGroups.has(groupName)) {
-      commandGroups.set(groupName, []);
-    }
-    commandGroups.get(groupName).push(name);
-  };
+function buildParam(message, command, args, main) {
+  const p = {
+    // Raw Discord objects
+    message,
+    user:    message.author,
+    member:  message.member,
+    guild:   message.guild,
+    channel: message.channel,
+    client:  main.client,
 
-  try {
-    const files = await getFilesRecursively(dirPath);
-    for (let i = 0; i < files.length; i++) {
-      const filePath = files[i];
-      if (filePath.endsWith('.js')) {
-        const fileUrl = pathToFileURL(filePath).href;
-        const imported = await import(fileUrl);
-        const commandObj = imported.default || imported;
-        if (commandObj instanceof CommandInterface) {
-          registerCommand(commandObj);
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Failed to recursively load commands:', err);
-  }
-}
+    // Command context
+    command:  command.name,
+    args,            // string[]  — positional tokens after command name
+    rawArgs:  args.join(' '), // full remaining string, for commands that need it
 
-function initParam(interaction, command, main) {
-  const args = {};
-  if (interaction.options?.data) {
-    interaction.options.data.forEach((opt) => {
-      args[opt.name] = opt.value;
-      if (opt.options) {
-        opt.options.forEach((subOpt) => {
-          args[subOpt.name] = subOpt.value;
-        });
-      }
-    });
-  }
-
-  const param = {
-    interaction,
-    user: interaction.user,
-    member: interaction.member,
-    guild: interaction.guild,
-    channel: interaction.channel,
-    client: main.client,
-    command,
-    args,
-
-    config: main.config,
-    logger: main.logger,
-    global: main.global,
+    // Shared state
+    config:        main.config,
+    logger:        main.logger,
+    global:        main.global,
     commands,
     commandGroups,
 
-    // Pre-bound sender helper methods (no OwO reply prefixing)
-    send: main.sender.send(interaction),
-    error: main.sender.error(interaction)
+    // Sender helpers
+    send:  main.sender.send(message),
+    error: main.sender.error(message),
   };
 
-  param.setCooldown = function (ms) {
-    main.cooldown.setCooldown(command, param.user.id, ms);
-  };
+  // Convenience helpers
+  p.setCooldown = (ms) => main.cooldown.setCooldown(command.name, p.user.id, ms);
+  p.getName     = (u)  => main.global.getName(u ?? p.member ?? p.user);
+  p.getTag      = (u)  => main.global.getTag(u ?? p.user);
 
-  param.getName = (user) => {
-    return param.global.getName(user || param.member || param.user);
-  };
-
-  param.getTag = (user) => {
-    return param.global.getTag(user || param.user);
-  };
-
-  return param;
+  return p;
 }
 
 export default Command;

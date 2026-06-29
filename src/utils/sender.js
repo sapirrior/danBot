@@ -1,43 +1,41 @@
-let client;
+let _main;
 
 export function init(main) {
-  client = main.client;
+  _main = main;
 }
 
-async function createMessage(interaction, content, options = {}) {
-  const payload = typeof content === 'string' ? { content } : { ...content };
-  if (options.ephemeral) {
-    payload.ephemeral = true;
-  }
+// ── Primary send helper ────────────────────────────────────────────────────────
+// Returns a function bound to a specific Message object.
+// Commands call: await p.send('hello')  or  await p.send({ embeds: [...] })
 
-  if (!interaction.replied && !interaction.deferred) {
-    return interaction.reply(payload);
-  } else if (interaction.deferred && !interaction.replied) {
-    return interaction.editReply(payload);
-  } else {
-    return interaction.followUp(payload);
-  }
-}
-
-export function send(interaction) {
+export function send(message) {
   return function (content, options = {}) {
-    return createMessage(interaction, content, options);
+    const payload = typeof content === 'string'
+      ? { content, ...options }
+      : { ...content, ...options };
+    return message.channel.send(payload);
   };
 }
 
-export function error(interaction) {
+// ── Error helper ───────────────────────────────────────────────────────────────
+// Prepends the error emoji. By default does NOT ping the user (channel.send,
+// not message.reply). Commands can call message.reply themselves when they
+// want the reply-arrow UI.
+
+export function error(message) {
   return function (content, options = {}) {
-    const errorEmoji = interaction.client.bot?.config?.emoji?.error || '🚫';
-    let tempContent = {};
+    const emoji = _main?.config?.emoji?.error ?? '🚫';
+    const tag = `<@${message.author.id}>`;
+    let text;
     if (typeof content === 'string') {
-      tempContent.content = `${errorEmoji} **|** ${content}`;
+      text = `${emoji} **|** ${tag}${content}`;
     } else {
-      tempContent = { ...content };
-      tempContent.content = `${errorEmoji} **|** ${content.content}`;
+      const inner = content.content !== undefined ? content.content : '';
+      text = `${emoji} **|** ${tag}${inner}`;
     }
-    if (options.ephemeral === undefined) {
-      options.ephemeral = true;
-    }
-    return createMessage(interaction, tempContent, options);
+    const payload = typeof content === 'string'
+      ? { content: text, ...options }
+      : { ...content, content: text, ...options };
+    return message.channel.send(payload);
   };
 }

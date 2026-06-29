@@ -1,5 +1,7 @@
 {
   "debug": true,
+  "prefix": "sudo",
+  "statusChannel": "1471855331616231591",
   "embed": {
     "color": 5793266,
     "errorColor": 15548997,

@@ -1,53 +1,60 @@
 export default class CommandInterface {
   constructor(args) {
-    for (let key in args) {
-      if (key === 'execute') {
-        this.executeCommand = args[key];
-      } else {
-        this[key] = args[key];
-      }
+    // ── Required ─────────────────────────────────────────────────────────────
+    if (!args.name || typeof args.name !== 'string') {
+      throw new Error('CommandInterface: "name" (string) is required.');
+    }
+    if (typeof args.execute !== 'function') {
+      throw new Error(`CommandInterface "${args.name}": "execute" (function) is required.`);
     }
 
-    if (!this.builder) {
-      throw new Error('Command registration error: builder (SlashCommandBuilder) is required.');
-    }
+    // ── Identity ──────────────────────────────────────────────────────────────
+    this.name        = args.name.toLowerCase();
+    this.aliases     = Array.isArray(args.aliases)
+      ? args.aliases.map(a => a.toLowerCase())
+      : [];
+    this.description = args.description || '';
+    this.args        = args.args        || '';   // e.g. '<user> [amount]'
+    this.example     = Array.isArray(args.example)
+      ? args.example
+      : (args.example ? [args.example] : []);
+    this.group       = args.group       || 'utility';
 
-    this.name = this.builder.name;
-    this.description = this.builder.description;
-    this.slashData = this.builder.toJSON();
+    // ── Behaviour ─────────────────────────────────────────────────────────────
+    this.cooldown    = typeof args.cooldown === 'number' ? args.cooldown : 3000;
+    this.ownerOnly   = args.ownerOnly  ?? false;
+    this.guildOnly   = args.guildOnly  ?? true;
+    this.permissions = Array.isArray(args.permissions) ? args.permissions : [];
+
+    // ── Execution ─────────────────────────────────────────────────────────────
+    this.executeCommand = args.execute;
   }
 
-  async execute(params) {
-    // 1. Check if the command is restricted to the bot owner
-    if (this.ownerOnly && params.user.id !== params.config.owner) {
-      params.error(', this command is restricted to the bot owner!', { ephemeral: true });
-      return;
+  async execute(p) {
+    // 1. Owner-only guard
+    if (this.ownerOnly && p.user.id !== p.config.owner) {
+      return p.error(', this command is restricted to the bot owner!');
     }
 
-    // 2. Check if the bot itself has correct client permissions in this channel
-    if (params.guild && this.permissions) {
-      const channel = params.channel;
-      const botMember = params.guild.members.me || await params.guild.members.fetch(params.client.user.id);
-      const channelPerms = channel.permissionsFor(botMember);
-      
-      for (let i = 0; i < this.permissions.length; i++) {
-        const requiredPerm = this.permissions[i];
-        if (!channelPerms || !channelPerms.has(requiredPerm)) {
-          params.error(
-            `, the bot is missing the \`${requiredPerm}\` permission! Please configure the permissions or contact your server admin.`,
-            { ephemeral: true }
+    // 2. Guild-only guard
+    if (this.guildOnly && !p.guild) {
+      return p.error(', this command can only be used inside a server!');
+    }
+
+    // 3. Bot channel-permission guard
+    if (p.guild && this.permissions.length > 0) {
+      const botMember   = p.guild.members.me;
+      const channelPerms = p.channel.permissionsFor(botMember);
+      for (const perm of this.permissions) {
+        if (!channelPerms?.has(perm)) {
+          return p.error(
+            `, the bot is missing the \`${perm}\` permission in this channel!`
           );
-          return;
         }
       }
     }
 
-    // 3. Defer reply if configured (helps prevent Discord Gateway timeout warnings)
-    if (this.defer) {
-      await params.interaction.deferReply({ ephemeral: this.ephemeral ?? false });
-    }
-
-    // 4. Run the bound command
-    await this.executeCommand.bind(params)(params);
+    // 4. Run command
+    await this.executeCommand.call(p, p);
   }
 }

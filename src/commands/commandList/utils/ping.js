@@ -1,17 +1,18 @@
-import { SlashCommandBuilder } from 'discord.js';
+// src/commands/commandList/utils/ping.js
 import CommandInterface from '../../CommandInterface.js';
 
 export default new CommandInterface({
-  builder: new SlashCommandBuilder()
-    .setName('ping')
-    .setDescription('Shows the shard latency in ms'),
-
+  name:        'ping',
+  aliases:     ['p', 'latency'],
+  description: 'Shows the current shard latency',
+  args:        '',
+  example:     ['sudo ping'],
+  group:       'utility',
+  cooldown:    5000,
   permissions: ['SendMessages'],
-  group: 'utility',
-  cooldown: 5000,
 
   execute: async function (p) {
-    const apiPing = p.client.ws.ping;
-    await p.send(`🏓 **|** Pong! Shard Latency: ${apiPing}ms.`);
+    const ms = p.client.ws.ping;
+    await p.send(`🏓 **|** Pong! Latency: **${ms}ms**`);
   }
 });

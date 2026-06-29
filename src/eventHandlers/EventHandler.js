@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
+import { Events } from 'discord.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,7 +18,7 @@ class EventHandler {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (file.endsWith('.js') && file !== selfName) {
-        const eventName = file.slice(0, -3); // E.g., 'ready', 'interactionCreate'
+        const eventName = file.slice(0, -3); // E.g., 'clientReady', 'interactionCreate'
         const filePath = path.resolve(__dirname, file);
         const fileUrl = pathToFileURL(filePath).href;
         
@@ -25,7 +26,14 @@ class EventHandler {
         const handler = imported.default || imported;
         
         if (typeof handler.handle === 'function') {
-          this.main.client.on(eventName, handler.handle.bind(this.main));
+          const eventKey = eventName.charAt(0).toUpperCase() + eventName.slice(1);
+          const discordEvent = Events[eventKey];
+          if (discordEvent) {
+            this.main.client.on(discordEvent, handler.handle.bind(this.main));
+          } else {
+            // Fallback to raw eventName if not found in Events enum
+            this.main.client.on(eventName, handler.handle.bind(this.main));
+          }
         }
       }
     }
